@@ -23,59 +23,67 @@ end
 -- Generate the list of friends
 local function FindFriends()
 	for i = 1, MAX_SKILLLINE_TABS do
-	   local name, texture, offset, numSpells = GetSpellTabInfo(i);
-	   
-	   if not name then
-		  break;
-	   end
+		local name, texture, offset, numSpells = GetSpellTabInfo(i);
+		
+		if not name then
+			break;
+		end
+		
+		SearchTab(name, offset, numSpells, "ZzCompanions", Menagerie_Pets, pets, function(spell)
+			return true
+		end)
 
-		if name == "ZzCompanions" then
-			for s = offset + 1, offset + numSpells do
-				local spell, rank = GetSpellName(s, BOOKTYPE_SPELL);
-				
-				-- Check for blacklisted pets
-				local bl = false
-				for i=1,table.getn(Menagerie_Pets) do
-					if  string.lower(spell) == Menagerie_Pets[i] then
-						bl = true
-					end
-				end
-				if string.lower(spell) == string.lower(Menagerie_LastPet) then
-					bl = true
-				end
-				if not bl then 
-					table.insert(pets, spell)
-				end
+		-- Use generic SearchTab for ZMounts (AQ40 logic encapsulated in the function)
+		SearchTab(name, offset, numSpells, "ZMounts", Menagerie_Mounts, mounts, function(spell)
+			-- If not in Ahn'Qiraj exclude Qiraji Battle Tank, otherwise include only it
+			if GetZoneText() ~= "Ahn'Qiraj" then
+				return not string.find(spell, "Qiraji Battle Tank")
+			else
+				return string.find(spell, "Qiraji Battle Tank")
+			end
+		end)
+		
+		-- Search class talent trees for mounts using filter functions
+		SearchTab(name, offset, numSpells, "Demonology", Menagerie_Mounts, mounts, function(spell)
+			return string.find(spell, "Summon Felsteed") or string.find(spell, "Summon Dreadsteed")
+		end)
+		SearchTab(name, offset, numSpells, "Protection", Menagerie_Mounts, mounts, function(spell)
+			return string.find(spell, "Summon Warhorse") or string.find(spell, "Summon Charger")
+		end)
+		SearchTab(name, offset, numSpells, "Feral Combat", Menagerie_Mounts, mounts, function(spell)
+			return string.find(spell, "Travel Form")
+		end)
+	end
+end
+
+function SearchTab(name, offset, numSpells, tabName, blacklistTable, targetTable, allowFunc)
+	-- tabName: the spellbook tab to inspect
+	-- blacklistTable: Menagerie_Pets or Menagerie_Mounts
+	-- targetTable: pets or mounts table to insert into
+	-- allowFunc: function(spell) -> boolean, return true to add spell to mounts/pets
+	
+	if name ~= tabName then return end
+
+	for s = offset + 1, offset + numSpells do
+		local spell, rank = GetSpellName(s, BOOKTYPE_SPELL)
+		if not spell then break end
+
+		-- Check for blacklisted items
+		local bl = false
+		for i = 1, table.getn(blacklistTable) do
+			if string.lower(spell) == blacklistTable[i] then
+				bl = true
+				break
 			end
 		end
 		
-		if name == "ZMounts" then
-			for s = offset + 1, offset + numSpells do
-				local spell, rank = GetSpellName(s, BOOKTYPE_SPELL);
-
-				-- Check for blacklisted mounts
-				local bl = false
-				for i=1,table.getn(Menagerie_Mounts) do
-					if  string.lower(spell) == Menagerie_Mounts[i] then
-						bl = true
-					end
-				end
-				if not bl then
-					-- Dirty check to see if we're in AQ40 or not and only add the appropriate mounts to the list. ...I'm tired, this is messy. But probably works? IDK
-					if GetZoneText() ~= "Ahn'Qiraj" then
-						if not string.find(spell, "Qiraji Battle Tank") then
-							table.insert(mounts, spell)
-						end
-					else
-						if string.find(spell, "Qiraji Battle Tank") then
-							table.insert(mounts, spell)
-						end
-					end
-				end
-			end
+		if not bl and allowFunc and allowFunc(spell) then
+			table.insert(targetTable, spell)
 		end
 	end
 end
+
+
 
 SLASH_MENAGERIEPET1, SLASH_MENAGERIEPET2 = "/randompet", "/randpet"
 SlashCmdList["MENAGERIEPET"] = function(message)
@@ -155,8 +163,10 @@ function Menagerie(message)
 	-- Summon our friends!
 	else
 		if commandlist[1] == "pets" then
-			if table.getn(pets) > 1 then
-				table.insert(pets, Menagerie_LastPet)
+			-- remove last pet from candidate list so it won't be picked again
+			if table.getn(pets) > 1 and Menagerie_LastPet ~= "" then
+				local found, idx = doesTableContain(pets, Menagerie_LastPet)
+				if found then table.remove(pets, idx) end
 			end
 			if table.getn(pets) > 0 then
 				Menagerie_LastPet = pets[math.random(table.getn(pets))]
@@ -165,8 +175,10 @@ function Menagerie(message)
 				DEFAULT_CHAT_FRAME:AddMessage("|cffbe5eff[Turtle Menagerie]|r No pets available.")
 			end
 		else
-			if table.getn(mounts) > 1 then
-				table.insert(mounts, Menagerie_LastMount)
+			-- remove last mount from candidate list so it won't be picked again
+			if table.getn(mounts) > 1 and Menagerie_LastMount ~= "" then
+				local found, idx = doesTableContain(mounts, Menagerie_LastMount)
+				if found then table.remove(mounts, idx) end
 			end
 			if table.getn(mounts) > 0 then
 				Menagerie_LastMount = mounts[math.random(table.getn(mounts))]
