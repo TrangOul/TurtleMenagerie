@@ -32,42 +32,42 @@ local function FindFriends()
 		SearchTab(name, offset, numSpells, "ZzCompanions", Menagerie_Pets, pets, function(spell)
 			return true
 		end)
-
-		-- Use generic SearchTab for ZMounts (AQ40 logic encapsulated in the function)
-		SearchTab(name, offset, numSpells, "ZMounts", Menagerie_Mounts, mounts, function(spell)
-			-- If not in Ahn'Qiraj exclude Qiraji Battle Tank, otherwise include only it
-			if GetZoneText() ~= "Ahn'Qiraj" then
-				return not string.find(spell, "Qiraji Battle Tank")
-			else
-				return string.find(spell, "Qiraji Battle Tank")
-			end
-		end)
 		
-		-- Search class talent trees for mounts using filter functions
-		SearchTab(name, offset, numSpells, "Demonology", Menagerie_Mounts, mounts, function(spell)
-			return string.find(spell, "Summon Felsteed") or string.find(spell, "Summon Dreadsteed")
-		end)
-		SearchTab(name, offset, numSpells, "Protection", Menagerie_Mounts, mounts, function(spell)
-			return string.find(spell, "Summon Warhorse") or string.find(spell, "Summon Charger")
-		end)
-		SearchTab(name, offset, numSpells, "Feral Combat", Menagerie_Mounts, mounts, function(spell)
-			return string.find(spell, "Travel Form")
-		end)
+		if GetZoneText() == "Ahn'Qiraj" then
+			SearchTab(name, offset, numSpells, "ZMounts", Menagerie_Mounts, mounts, function(spell)
+				return string.find(spell, "Qiraji Battle Tank")
+			end)
+		else
+			SearchTab(name, offset, numSpells, "ZMounts", Menagerie_Mounts, mounts, function(spell)
+				return not string.find(spell, "Qiraji Battle Tank")
+			end)
+			
+			-- Search class talent trees for mounts using filter functions
+			SearchTab(name, offset, numSpells, "Demonology", Menagerie_Mounts, mounts, function(spell)
+				return string.find(spell, "Summon Felsteed") or string.find(spell, "Summon Dreadsteed")
+			end)
+			SearchTab(name, offset, numSpells, "Protection", Menagerie_Mounts, mounts, function(spell)
+				return string.find(spell, "Summon Warhorse") or string.find(spell, "Summon Charger")
+			end)
+			SearchTab(name, offset, numSpells, "Feral Combat", Menagerie_Mounts, mounts, function(spell)
+				return string.find(spell, "Travel Form")
+			end)
+		end
 	end
 end
 
 function SearchTab(name, offset, numSpells, tabName, blacklistTable, targetTable, allowFunc)
 	-- tabName: the spellbook tab to inspect
-	-- blacklistTable: Menagerie_Pets or Menagerie_Mounts
-	-- targetTable: pets or mounts table to insert into
-	-- allowFunc: function(spell) -> boolean, return true to add spell to mounts/pets
+	-- blacklistTable: table of blacklisted pet/mount names
+	-- targetTable: pets/mounts table to insert into
+	-- allowFunc: function(spell) -> boolean, return true to add spell to pets/mounts
 	
 	if name ~= tabName then return end
-
+	
 	for s = offset + 1, offset + numSpells do
 		local spell, rank = GetSpellName(s, BOOKTYPE_SPELL)
 		if not spell then break end
-
+		
 		-- Check for blacklisted items
 		local bl = false
 		for i = 1, table.getn(blacklistTable) do
@@ -102,13 +102,12 @@ end
 
 -- A lot of this blacklist code is heavily based on Shagu's ShaguChat.
 function Menagerie(message)
-
 	pets = {}
 	mounts = {}
-
-	local commandlist = { }
+	
+	local commandlist = {}
 	local command
-
+	
 	for command in gfind(message, "[^ ]+") do
 		table.insert(commandlist, string.lower(command))
 	end
@@ -117,85 +116,130 @@ function Menagerie(message)
 	
 	-- Add to blacklist
 	if commandlist[2] == "bl" then
-		local addstring = table.concat(commandlist," ",3)
-		if addstring == "" then return end
-		local m = strmatch(addstring, "%[(.+)%]")
-		if m then addstring = m end
-		if commandlist[1] == "pets" then
-			table.insert(Menagerie_Pets, string.lower(addstring))
-		else
-			table.insert(Menagerie_Mounts, string.lower(addstring))
-		end
-		DEFAULT_CHAT_FRAME:AddMessage("|cffbe5eff[Turtle Menagerie]|r Adding |cffbe5eff".. addstring .."|r to your blacklist list.")
-
+		AddToBlacklist(commandlist)
+		
 	-- Remove from blacklist
 	elseif commandlist[2] == "rm" then
-		local name = ""
-		local rmTable = Menagerie_Mounts
-		if commandlist[1] == "pets" then rmTable = Menagerie_Pets end
-		for i = 3, table.getn(commandlist) do
-			name = name .. commandlist[i] .. " "
-		end
-		name= string.sub(name,1, string.len(name)-1)
-		local isContained, index = doesTableContain(rmTable,name)
-		if isContained and commandlist[1] == "pets" then
-			DEFAULT_CHAT_FRAME:AddMessage("|cffbe5eff[Turtle Menagerie]|r Removing |cffbe5eff" .. name .. "|r from your blacklist list")
-			table.remove(Menagerie_Pets, index)
-		elseif isContained then
-			DEFAULT_CHAT_FRAME:AddMessage("|cffbe5eff[Turtle Menagerie]|r Removing |cffbe5eff" .. name .. "|r from your blacklist list")
-			table.remove(Menagerie_Mounts, index)
-		end
-	
+		RemoveFromBlacklist(commandlist)
+		
 	-- List the blacklist
 	elseif commandlist[2] == "ls" then
-		DEFAULT_CHAT_FRAME:AddMessage("|cffbe5eff[Turtle Menagerie] Blacklist|r ")
-		DEFAULT_CHAT_FRAME:AddMessage("|cffbe5effPets:")
-		printID = 0
-		for id, bl in pairs(Menagerie_Pets) do
-			DEFAULT_CHAT_FRAME:AddMessage(" |r[|cffbe5eff"..id.."|r] "..bl)
-			printID = id
-		end
-		DEFAULT_CHAT_FRAME:AddMessage("|cffbe5effMounts:")
-		for id, bl in pairs(Menagerie_Mounts) do
-			DEFAULT_CHAT_FRAME:AddMessage(" |r[|cffbe5eff"..id+printID.."|r] "..bl)
-		end
+		ListBlacklist(commandlist)
 		
 	-- Summon our friends!
 	else
-		if commandlist[1] == "pets" then
-			-- remove last pet from candidate list so it won't be picked again
-			if table.getn(pets) > 1 and Menagerie_LastPet ~= "" then
-				local found, idx = doesTableContain(pets, Menagerie_LastPet)
-				if found then table.remove(pets, idx) end
-			end
-			if table.getn(pets) > 0 then
-				Menagerie_LastPet = pets[math.random(table.getn(pets))]
-				CastSpellByName(Menagerie_LastPet)
-			else
-				DEFAULT_CHAT_FRAME:AddMessage("|cffbe5eff[Turtle Menagerie]|r No pets available.")
-			end
-		else
-			-- remove last mount from candidate list so it won't be picked again
-			if table.getn(mounts) > 1 and Menagerie_LastMount ~= "" then
-				local found, idx = doesTableContain(mounts, Menagerie_LastMount)
-				if found then table.remove(mounts, idx) end
-			end
-			if table.getn(mounts) > 0 then
-				Menagerie_LastMount = mounts[math.random(table.getn(mounts))]
-				CastSpellByName(Menagerie_LastMount)
-			else
-				DEFAULT_CHAT_FRAME:AddMessage("|cffbe5eff[Turtle Menagerie]|r No mounts available.")
+		SummonRandomCompanion(commandlist)
+	end
+end
+
+function SummonRandomCompanion(commandlist)
+	local function SummonRandomCompanionFromList(list, lastValue, lastSetter, emptyMessage)
+		-- remove last summon so it won't be picked again
+		-- do it only when there are more options to choose from
+		if table.getn(list) > 1 and lastValue ~= "" then
+			local found, idx = doesTableContain(list, lastValue)
+			if found then
+				table.remove(list, idx)
 			end
 		end
+		
+		-- pick new one
+		if table.getn(list) > 0 then
+			local chosen = list[math.random(table.getn(list))]
+			lastSetter(chosen)
+			CastSpellByName(chosen)
+		else
+			DEFAULT_CHAT_FRAME:AddMessage("|cffbe5eff[Turtle Menagerie]|r " .. emptyMessage)
+		end
 	end
+	
+	if commandlist[1] == "pets" then
+		SummonRandomCompanionFromList(
+			pets,
+			Menagerie_LastPet,
+			function(v) Menagerie_LastPet = v end,
+			"No pets available."
+		)
+		elseif commandlist[1] == "mounts" then
+		SummonRandomCompanionFromList(
+			mounts,
+			Menagerie_LastMount,
+			function(v) Menagerie_LastMount = v end,
+			"No mounts available."
+		)
+	end
+end
+
+function ListBlacklist(commandlist)
+	local rmTable = GetCompanionsTable(commandlist[1])
+	DEFAULT_CHAT_FRAME:AddMessage("|cffbe5eff[Turtle Menagerie]|r Blacklisted |cffbe5eff" .. commandlist[1] .. "|r:")
+	
+	for id, bl in pairs(rmTable) do
+		DEFAULT_CHAT_FRAME:AddMessage(" |r[|cffbe5eff" .. id .. "|r] " .. bl)
+	end
+end
+
+function AddToBlacklist(commandlist)
+	local input = table.concat(commandlist, " ", 3)
+	if input == "" then return end
+	
+	local m = strmatch(input, "%[(.+)%]")
+	if m then
+		input = m
+	end
+	DEFAULT_CHAT_FRAME:AddMessage("|cffbe5eff[Turtle Menagerie]|r Adding |cffbe5eff".. input .."|r to your |cffbe5eff" .. commandlist[1] .. "|r blacklist")
+	companions = GetCompanionsTable(commandlist[1])
+	table.insert(companions, string.lower(input))
+end
+
+
+function RemoveFromBlacklist(commandlist)
+	local rmTable = GetCompanionsTable(commandlist[1])
+	local input = table.concat(commandlist, " ", 3)
+	if input == "" then return end
+	
+	local indexToRemove = tonumber(input)
+	local nameToRemove = nil
+	
+	if indexToRemove then
+		-- Remove by index
+		if indexToRemove >= 1 and indexToRemove <= table.getn(rmTable) then
+			nameToRemove = rmTable[indexToRemove]
+		else
+			DEFAULT_CHAT_FRAME:AddMessage("|cffbe5eff[Turtle Menagerie]|r Index |cffbe5eff" .. indexToRemove .. "|r out of range for your |cffbe5eff" .. commandlist[1] .. "|r blacklist")
+			return
+		end
+	else
+		-- Remove by name
+		nameToRemove = input
+		local isContained, idx = doesTableContain(rmTable, nameToRemove)
+		if isContained then
+			indexToRemove = idx
+		else
+			DEFAULT_CHAT_FRAME:AddMessage("|cffbe5eff[Turtle Menagerie]|r |cffbe5eff" .. nameToRemove .. "|r not found in your |cffbe5eff" .. commandlist[1] .. "|r blacklist")
+			return
+		end
+	end
+	
+	DEFAULT_CHAT_FRAME:AddMessage("|cffbe5eff[Turtle Menagerie]|r Removing |cffbe5eff" .. nameToRemove .. "|r from your |cffbe5eff" .. commandlist[1] .. "|r blacklist")
+	table.remove(rmTable, indexToRemove)
+end
+
+function GetCompanionsTable(command)
+	if command == "pets" then
+		return Menagerie_Pets
+	elseif command == "mounts" then
+		return Menagerie_Mounts
+	end
+	return nil
 end
 
 function doesTableContain(table, contains)
 	local found = false
 	local index = nil
 	for k, v in pairs(table) do
-		if v == contains then 
-			found = true 
+		if v == contains then
+			found = true
 			index = k
 		end
 	end
