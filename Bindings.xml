@@ -1,0 +1,8 @@
+<Bindings>
+	<Binding name="RMPET" header="TITLE">
+		Menagerie("pets");
+	</Binding>
+	<Binding name="RMMOUNT">
+		Menagerie("mounts");
+	</Binding>
+</Bindings>
