@@ -5,3 +5,4 @@
 ## Version: 2.4.0
 ## SavedVariables: Menagerie_Pets Menagerie_Mounts
 TurtleMenagerie.lua
+localization.lua
