@@ -24,24 +24,24 @@ end
 local function FindFriends()
 	for i = 1, MAX_SKILLLINE_TABS do
 		local name, texture, offset, numSpells = GetSpellTabInfo(i);
-		
+
 		if not name then
 			break;
 		end
-		
-		SearchTab(name, offset, numSpells, "ZzCompanions", Menagerie_Pets, pets, function(spell)
+
+SearchTab(name, offset, numSpells, "Companions", Menagerie_Pets, pets, function(spell)
 			return true
 		end)
-		
+
 		if GetZoneText() == "Ahn'Qiraj" then
-			SearchTab(name, offset, numSpells, "ZMounts", Menagerie_Mounts, mounts, function(spell)
+			SearchTab(name, offset, numSpells, "Mounts", Menagerie_Mounts, mounts, function(spell)
 				return string.find(spell, "Qiraji Battle Tank")
 			end)
 		else
-			SearchTab(name, offset, numSpells, "ZMounts", Menagerie_Mounts, mounts, function(spell)
+			SearchTab(name, offset, numSpells, "Mounts", Menagerie_Mounts, mounts, function(spell)
 				return not string.find(spell, "Qiraji Battle Tank")
 			end)
-			
+
 			-- Search class talent trees for mounts using filter functions
 			SearchTab(name, offset, numSpells, "Demonology", Menagerie_Mounts, mounts, function(spell)
 				return string.find(spell, "Summon Felsteed") or string.find(spell, "Summon Dreadsteed")
@@ -113,7 +113,7 @@ function Menagerie(message)
 	end
 	
 	FindFriends()
-	
+
 	-- Add to blacklist
 	if commandlist[2] == "bl" then
 		AddToBlacklist(commandlist)
