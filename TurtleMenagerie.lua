@@ -46,7 +46,7 @@ SearchTab(name, offset, numSpells, "Companions", Menagerie_Pets, pets, function(
 			SearchTab(name, offset, numSpells, "Demonology", Menagerie_Mounts, mounts, function(spell)
 				return string.find(spell, "Summon Felsteed") or string.find(spell, "Summon Dreadsteed")
 			end)
-			SearchTab(name, offset, numSpells, "Protection", Menagerie_Mounts, mounts, function(spell)
+			SearchTab(name, offset, numSpells, "Holy", Menagerie_Mounts, mounts, function(spell)
 				return string.find(spell, "Summon Warhorse") or string.find(spell, "Summon Charger")
 			end)
 			SearchTab(name, offset, numSpells, "Feral Combat", Menagerie_Mounts, mounts, function(spell)
